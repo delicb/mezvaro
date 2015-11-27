@@ -6,14 +6,14 @@ import "net/http"
 type Handler interface {
 	// Handle does real job of processing request. It receives context
 	// in which it is executing in.
-	Handle(Context)
+	Handle(*Context)
 }
 
 // HandlerFunc is function that implements Handler interface.
-type HandlerFunc func(Context)
+type HandlerFunc func(*Context)
 
 // Handle is implementation of Handler interface for HandlerFunc type.
-func (hf HandlerFunc) Handle(c Context) {
+func (hf HandlerFunc) Handle(c *Context) {
 	hf(c)
 }
 
@@ -37,7 +37,7 @@ func (m *Mezvaro) Use(handler ...Handler) *Mezvaro {
 
 // UseFunc adds function that matches signature of HandlerFunc to used instance
 // of Mezvaro.
-func (m *Mezvaro) UseFunc(handlerFuncs ...func(Context)) *Mezvaro {
+func (m *Mezvaro) UseFunc(handlerFuncs ...func(*Context)) *Mezvaro {
 	handlers := make([]Handler, 0, len(handlerFuncs))
 
 	for _, h := range handlerFuncs {
@@ -85,7 +85,7 @@ func (m *Mezvaro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // WrapHandlerMiddleware wraps middleware defined in format popular in bunch
 // of other Go frameworks to Handler compatible with Mezvaro.
 func WrapHandlerMiddleware(middleware func(http.Handler) http.Handler) Handler {
-	fn := func(c Context) {
+	fn := func(c *Context) {
 		var calledNext bool
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// TODO: replace response and request in context, since from
@@ -93,7 +93,7 @@ func WrapHandlerMiddleware(middleware func(http.Handler) http.Handler) Handler {
 			calledNext = true
 			c.Next()
 		}))
-		handler.ServeHTTP(c.Response(), c.Request())
+		handler.ServeHTTP(c.Response, c.Request)
 		if !calledNext {
 			// standard way of aborting chain for this style of middleware is
 			// not to call next handler, so if next handler was not called,
@@ -108,8 +108,8 @@ func WrapHandlerMiddleware(middleware func(http.Handler) http.Handler) Handler {
 // can be used as middleware (next middleware is automatically called) or it
 // can be used as final handler.
 func WrapHandler(handler http.Handler) Handler {
-	return HandlerFunc(func(c Context) {
-		handler.ServeHTTP(c.Response(), c.Request())
+	return HandlerFunc(func(c *Context) {
+		handler.ServeHTTP(c.Response, c.Request)
 		c.Next()
 	})
 }
