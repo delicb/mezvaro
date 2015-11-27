@@ -12,4 +12,10 @@
 // All existing Middleware handlers can be used with Mezvaro without hassle,
 // but those middlewares can not use Context, since they only have access
 // to ResponseWriter and *Request objects.
+//
+// Example of hello world handler:
+//
+//     func MyHandler(c *mezvaro.Context) {
+//         c.Response.Write([]byte("hello world"))
+//     }
 package mezvaro
