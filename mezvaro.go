@@ -88,9 +88,11 @@ func WrapHandlerMiddleware(middleware func(http.Handler) http.Handler) Handler {
 	fn := func(c *Context) {
 		var calledNext bool
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: replace response and request in context, since from
-			// now on we should use objects provided by middleware
 			calledNext = true
+			// replace response and request objects with one provided from middleware,
+			// since middleware might want to replace them with something similar
+			c.Response = w
+			c.Request = r
 			c.Next()
 		}))
 		handler.ServeHTTP(c.Response, c.Request)
