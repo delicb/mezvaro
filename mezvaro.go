@@ -1,6 +1,9 @@
 package mezvaro
 
-import "net/http"
+import (
+	"net/http"
+	"sync"
+)
 
 // Handler defines interface for Mezvaro middlewares and handlers.
 type Handler interface {
@@ -15,6 +18,28 @@ type HandlerFunc func(*Context)
 // Handle is implementation of Handler interface for HandlerFunc type.
 func (hf HandlerFunc) Handle(c *Context) {
 	hf(c)
+}
+
+// UrlParamsExtractor is function that extracts mutable parts or URL.
+// Intended use of this is to allow creation of adapters for various routers.
+type UrlParamsExtractor func(*http.Request) map[string]string
+
+// defaultUrlParamsExtractor works with standard library multiplexer that does not
+// support URL parameters, so it only returns nil.
+func defaultUrlParamsExtractor(r *http.Request) map[string]string {
+	return nil
+}
+
+var (
+	paramsExtractorLock sync.Mutex
+	urlParamsExtractor  = defaultUrlParamsExtractor
+)
+
+// SetUrlParamsExtractor sets function that returns map of mutable parts of URL.
+func SetUrlParamsExtractor(extractor UrlParamsExtractor) {
+	paramsExtractorLock.Lock()
+	defer paramsExtractorLock.Unlock()
+	urlParamsExtractor = extractor
 }
 
 // Mezvaro is simply chain of handlers that will be executed in order they are added.
@@ -78,7 +103,16 @@ func (m *Mezvaro) Fork(handlers ...Handler) *Mezvaro {
 
 // ServeHTTP implements http.Handler interface.
 func (m *Mezvaro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := newContext(w, r, m.handlerChain, nil)
+	c := newContext(w, r, m.handlerChain, urlParamsExtractor(r))
+	c.Next()
+}
+
+// Handle implements Handler interface.
+func (m *Mezvaro) Handle(c *Context) {
+	// Reuse provided context, since request and response has to be the same
+	// and stuff like timeout and deadline has to be preserved.
+	c.handlerChain = m.handlerChain
+	c.index = -1
 	c.Next()
 }
 
