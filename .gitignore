@@ -25,4 +25,5 @@ _testmain.go
 
 # Idea stuff
 *.iml
+coverage.out
 
