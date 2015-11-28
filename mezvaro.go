@@ -75,20 +75,32 @@ func (m *Mezvaro) UseFunc(handlerFuncs ...func(*Context)) *Mezvaro {
 // UseHandlerMiddleware adds handler defined in format popular in Go community to used instance
 // Mezvaro. This format (func (http.Handler) http.Handler) is popular in bunch of
 // other frameworks, and a lot of useful middlewares exist out there.
-func (m *Mezvaro) UseHandlerMiddleware(middleware func(http.Handler) http.Handler) *Mezvaro {
-	m.Use(WrapHandlerMiddleware(middleware))
+func (m *Mezvaro) UseHandlerMiddleware(middleware ...func(http.Handler) http.Handler) *Mezvaro {
+	mezvaroMiddlewares := make([]Handler, 0, len(middleware))
+	for _, h := range middleware {
+		mezvaroMiddlewares = append(mezvaroMiddlewares, WrapHandlerMiddleware(h))
+	}
+	m.Use(mezvaroMiddlewares...)
 	return m
 }
 
 // UseHandler adds handler in standard library format to chain of handlers.
-func (m *Mezvaro) UseHandler(handler http.Handler) *Mezvaro {
-	m.Use(WrapHandler(handler))
+func (m *Mezvaro) UseHandler(handlers ...http.Handler) *Mezvaro {
+	mezvaroHandlers := make([]Handler, 0, len(handlers))
+	for _, h := range handlers {
+		mezvaroHandlers = append(mezvaroHandlers, WrapHandler(h))
+	}
+	m.Use(mezvaroHandlers...)
 	return m
 }
 
 // UseHandlerFunc adds handler function in standard library format to chain of handlers.
-func (m *Mezvaro) UseHandlerFunc(handler func(http.ResponseWriter, *http.Request)) *Mezvaro {
-	m.Use(WrapHandlerFunc(handler))
+func (m *Mezvaro) UseHandlerFunc(handlers ...func(http.ResponseWriter, *http.Request)) *Mezvaro {
+	mezvaroHandlers := make([]Handler, 0, len(handlers))
+	for _, h := range handlers {
+		mezvaroHandlers = append(mezvaroHandlers, WrapHandlerFunc(h))
+	}
+	m.Use(mezvaroHandlers...)
 	return m
 }
 
