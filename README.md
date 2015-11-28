@@ -102,6 +102,57 @@ func main() {
 }
 ```
 
+#### Context usage
+This is simple example of usage of context to pass information between middlewares and handler. As mentioned earlier, Context implements `net/context` and can be used for setting timeout, deadline, getting cancel function or passing values (as shown in this example).
+```go
+import (
+	"fmt"
+	"net/http"
+
+	mv "github.com/delicb/mezvaro"
+	"github.com/mssola/user_agent"
+)
+
+type BrowserInfo struct {
+	Name    string
+	Version string
+	OS      string
+}
+
+type userInfo int
+
+const browserInfoKey userInfo = 1
+
+func UserAgentMiddleware(c *mv.Context) {
+	ua := user_agent.New(c.Request.Header["User-Agent"][0])
+	name, version := ua.Browser()
+	browserInfo := BrowserInfo{
+		Name:    name,
+		Version: version,
+		OS:      ua.OS(),
+	}
+	c.WithValue(browserInfoKey, browserInfo)
+	c.Next()
+}
+
+func HelloWorldHandler(c *mv.Context) {
+	browserInfo := c.Value(browserInfoKey).(BrowserInfo)
+	msg := fmt.Sprintf(
+		"You are accessing with browser: %s in version %s from OS: %s",
+		browserInfo.Name, browserInfo.Version, browserInfo.OS,
+	)
+	c.Response.Write([]byte(msg))
+}
+
+func main() {
+	m := mv.New()
+	m.UseFunc(UserAgentMiddleware, HelloWorldHandler)
+	http.Handle("/", m)
+	http.ListenAndServe(":8000", nil)
+}
+
+```
+
 ## Plans
 This is under heavy development, so breaking changes are possible. However, feel free to report tickets and send pull requests if you find this aproach interesting. Any feedback is welcome.
 
