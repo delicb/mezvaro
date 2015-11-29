@@ -29,7 +29,7 @@ func TestUse(t *testing.T) {
 		HandlerFunc(func(c *Context) {}),
 	)
 	if len(m.handlerChain) != 2 {
-		t.Fatalf("Expected 2 handlers, found: ", len(m.handlerChain))
+		t.Fatal("Expected 2 handlers, found: ", len(m.handlerChain))
 	}
 }
 
