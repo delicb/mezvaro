@@ -20,23 +20,23 @@ func (hf HandlerFunc) Handle(c *Context) {
 	hf(c)
 }
 
-// UrlParamsExtractor is function that extracts mutable parts or URL.
+// URLParamsExtractor is function that extracts mutable parts or URL.
 // Intended use of this is to allow creation of adapters for various routers.
-type UrlParamsExtractor func(*http.Request) map[string]string
+type URLParamsExtractor func(*http.Request) map[string]string
 
-// defaultUrlParamsExtractor works with standard library multiplexer that does not
+// defaultURLParamsExtractor works with standard library multiplexer that does not
 // support URL parameters, so it only returns nil.
-func defaultUrlParamsExtractor(r *http.Request) map[string]string {
+func defaultURLParamsExtractor(r *http.Request) map[string]string {
 	return nil
 }
 
 var (
 	paramsExtractorLock sync.Mutex
-	urlParamsExtractor  = defaultUrlParamsExtractor
+	urlParamsExtractor  = defaultURLParamsExtractor
 )
 
-// SetUrlParamsExtractor sets function that returns map of mutable parts of URL.
-func SetUrlParamsExtractor(extractor UrlParamsExtractor) {
+// SetURLParamsExtractor sets function that returns map of mutable parts of URL.
+func SetURLParamsExtractor(extractor URLParamsExtractor) {
 	paramsExtractorLock.Lock()
 	defer paramsExtractorLock.Unlock()
 	urlParamsExtractor = extractor
@@ -44,12 +44,14 @@ func SetUrlParamsExtractor(extractor UrlParamsExtractor) {
 
 // Mezvaro is simply chain of handlers that will be executed in order they are added.
 type Mezvaro struct {
+	parent       *Mezvaro
 	handlerChain []Handler
 }
 
 // New creates new instance of Mezvaro with provided handlers.
 func New(handlers ...Handler) *Mezvaro {
 	return &Mezvaro{
+		parent:       nil,
 		handlerChain: handlers,
 	}
 }
@@ -107,15 +109,64 @@ func (m *Mezvaro) UseHandlerFunc(handlers ...func(http.ResponseWriter, *http.Req
 // Fork creates new instance of Mezvaro with copied handlers from current instance
 // and added new provided handlers.
 func (m *Mezvaro) Fork(handlers ...Handler) *Mezvaro {
-	n := make([]Handler, 0, len(m.handlerChain)+len(handlers))
-	n = append(n, m.handlerChain...)
-	n = append(n, handlers...)
-	return New(n...)
+	return &Mezvaro{
+		parent:       m,
+		handlerChain: handlers,
+	}
+	//	n := make([]Handler, 0, len(m.handlerChain)+len(handlers))
+	//	n = append(n, m.handlerChain...)
+	//	n = append(n, handlers...)
+	//	return New(n...)
+}
+
+// wholeChain returns whole chain of handlers including this Mezvaro instance
+// and all its parents.
+func (m *Mezvaro) wholeChain() []Handler {
+	// count number of handler in entire chain first, to allocate slice
+	// of right size right away.
+	var handlerNo int
+	current := m
+	// capacity of 5 is just a guess, most of the time no more the 5
+	// instance will be in chain, so this should be enough to avoid
+	// new allocations during append.
+	parents := make([]*Mezvaro, 0, 5)
+	for current != nil {
+		parents = append(parents, current)
+		handlerNo += len(current.handlerChain)
+		current = current.parent
+	}
+	// allocate slice with array of appropriate size
+	// this prevents dynamic expansion of array during appending
+	handlers := make([]Handler, 0, handlerNo)
+	// traverse parents in revers order, since that order of middlewares
+	// is expected
+	for i := len(parents) - 1; i >= 0; i-- {
+		handlers = append(handlers, parents[i].handlerChain...)
+	}
+	return handlers
+}
+
+// H builds entire chain of middlewares and adds provided handler at the end.
+// This function exists for optimisation, to avoid building middleware
+// chain in runtime, so we are building it at boot up time.
+func (m *Mezvaro) H(h Handler) http.Handler {
+	wholeChain := append(m.wholeChain(), h)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c := newContext(w, r, wholeChain, urlParamsExtractor(r))
+		c.Next()
+	})
+}
+
+// HF builds entire chain of middlewares and adds provided handler func at the end.
+// this function exists for optimization, to avoid building middleware
+// chain in runtime, so we are building it at boot time.
+func (m *Mezvaro) HF(h func(*Context)) http.Handler {
+	return m.H(HandlerFunc(h))
 }
 
 // ServeHTTP implements http.Handler interface.
 func (m *Mezvaro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := newContext(w, r, m.handlerChain, urlParamsExtractor(r))
+	c := newContext(w, r, m.wholeChain(), urlParamsExtractor(r))
 	c.Next()
 }
 
@@ -123,7 +174,7 @@ func (m *Mezvaro) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (m *Mezvaro) Handle(c *Context) {
 	// Reuse provided context, since request and response has to be the same
 	// and stuff like timeout and deadline has to be preserved.
-	c.handlerChain = m.handlerChain
+	c.handlerChain = m.wholeChain()
 	c.index = -1
 	c.Next()
 }

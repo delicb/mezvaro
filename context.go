@@ -66,9 +66,9 @@ func (c *Context) IsAborted() bool {
 	return c.index >= MaxHandlers
 }
 
-// UrlParam returns parameter from URL Path by name. If parameter with required
+// URLParam returns parameter from URL Path by name. If parameter with required
 // name does not exist, empty string is returned.
-func (c *Context) UrlParam(name string) string {
+func (c *Context) URLParam(name string) string {
 	// map is read only, so it should be safe for concurrent access
 	return c.urlParams[name]
 }
