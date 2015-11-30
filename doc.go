@@ -1,4 +1,4 @@
-// Mezvaro is simple implementation for middleware management for Go services.
+// Package mezvaro is simple implementation for middleware management for Go services.
 // Mezvaro does not follow http.Handler interface conventions (although it is
 // compatible with http.Handler). Instead Mezvaro handlers receive instance
 // context that can be used to obtain ResponseWriter and *Request that is
