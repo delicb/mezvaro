@@ -225,7 +225,7 @@ func TestCustomParamsExtractor(t *testing.T) {
 			"param": "value",
 		}
 	}
-	SetUrlParamsExtractor(extractor)
+	SetURLParamsExtractor(extractor)
 	m.ServeHTTP(httptest.NewRecorder(), nil)
 	if val, ok := urlParams["param"]; !ok {
 		t.Fatal("URL parameters key do not match.")
