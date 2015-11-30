@@ -82,8 +82,11 @@ func TestForkHandlerCount(t *testing.T) {
 	forkHandler := HandlerFunc(func(c *Context) {})
 	m := New(original)
 	fork := m.Fork(forkHandler)
-	if len(fork.handlerChain) != 2 {
-		t.Fatal("Expected 2 handlers in fork mezvaro, found: ", len(fork.handlerChain))
+	if len(fork.handlerChain) != 1 {
+		t.Fatal("Expected 1 handlers in fork mezvaro, found: ", len(fork.handlerChain))
+	}
+	if len(fork.wholeChain()) != 2 {
+		t.Fatal("Expected 2 handlers in entire chain, found: ", len(fork.handlerChain))
 	}
 }
 
