@@ -151,9 +151,7 @@ func main() {
 ```
 
 ## Plans
-This is under heavy development, so breaking changes are possible. However, feel free to report tickets and send pull requests if you find this aproach interesting. Any feedback is welcome.
-
-Next steps are to write more tests and improve quality of existing ones (100% coverage is goal in next couple of weeks). Also, in the same period, bindings for few routers will be released (and linked here).
+This is something that I am playing with when I have free time. There is no guarantee that I will ever come back to this. If any futher development occurres, it will probably be breaking changes. However, feel free to report tickets and send pull requests if you find this aproach interesting. Any feedback is welcome.
 
 ## Installation
 To install Mezvaro, run `go get github.com/delicb/mezvaro` from command line.
